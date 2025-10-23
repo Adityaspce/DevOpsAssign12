@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+venv/
+env/
+
+# Django static
+staticfiles/
+media/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.pem
+
+# Docker
+*.log
+*.pid
+
+# System
+.DS_Store
+*.zip

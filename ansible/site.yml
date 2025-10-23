@@ -1,0 +1,62 @@
+- name: Deploy Django app on manager
+  hosts: manager
+  become: yes
+  tasks:
+    - name: Create app directory
+      file:
+        path: /home/ubuntu/django_app
+        state: directory
+
+    - name: Copy Django app files
+      copy:
+        src: /home/ubuntu/DevOps_Assignment_Full_Template/DevOps_Assignment/django_app/
+        dest: /home/ubuntu/django_app/
+        mode: "0755"
+
+    - name: Create Docker network
+      shell: docker network create django_net
+      ignore_errors: yes
+
+    - name: Run PostgreSQL container
+      shell: |
+        docker run -d \
+          --name postgres_db \
+          --network django_net \
+          -e POSTGRES_USER=django \
+          -e POSTGRES_PASSWORD=django \
+          -e POSTGRES_DB=django_db \
+          -p 5432:5432 \
+          postgres:15
+      ignore_errors: yes
+
+    - name: Wait for PostgreSQL to be ready
+      shell: |
+        until docker exec postgres_db pg_isready -U django; do
+          echo "Waiting for database to be ready..."
+          sleep 3
+        done
+      retries: 10
+      delay: 5
+      register: db_check
+      until: db_check.rc == 0
+      ignore_errors: yes
+
+    - name: Run Django container
+      shell: |
+        docker run -d \
+          --name django_app \
+          --network django_net \
+          -p 8000:8000 \
+          -v /home/ubuntu/django_app:/app \
+          -w /app \
+          -e DB_HOST=postgres_db \
+          -e DB_NAME=django_db \
+          -e DB_USER=django \
+          -e DB_PASSWORD=django \
+          python:3.12-slim \
+          bash -c "apt-get update && \
+                   apt-get install -y gcc libpq-dev python3-dev && \
+                   pip install --no-cache-dir -r requirements.txt && \
+                   python manage.py migrate && \
+                   python manage.py runserver 0.0.0.0:8000"
+
